@@ -294,13 +294,13 @@ def search_artists():
   data = []
   search = db.session.query(Artist).all()
   artist_search = db.session.query(Artist.name.ilike("%" + request.form["search_term"] + "%")).all()
-  artist_list = list(map(search_artists(), artist_search)) 
+  #artist_list = list(map(search_artists(), artist_search)) 
   for s in artist_search:
     if request.form['search_term'] in search:
       data.append(Artist.name)
   response={
     "count": len(artist_search),
-    "data": artist_list
+    "data":  artist_search
   }
   return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term',''))
 
