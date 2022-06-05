@@ -2,11 +2,7 @@
 # Imports
 #----------------------------------------------------------------------------#
 
-from email.policy import default
-from itertools import count
-import json
-from re import S
-from unicodedata import name
+
 import dateutil.parser
 import babel
 from flask import Flask, jsonify, render_template, request, Response, flash, redirect, request_finished, url_for
@@ -16,9 +12,11 @@ import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from flask_migrate import Migrate
-from sqlalchemy import ForeignKey, true
+from sqlalchemy import ForeignKey, or_, true
 from datetime import date, datetime
 from forms import *
+from wtforms.validators import DataRequired
+
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -188,14 +186,26 @@ def search_venues():
   # TODO: implement search on venues with partial string search. Ensure it is case-insensitive.
   # seach for Hop should return "The Musical Hop".
   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
+  #  venue_search = Venue.query.filter(Venue.name.ilike('%' + request.form['search_term'] + '%'))
 
-  venue_search = Venue.query.filter(Venue.name.ilike('%' + request.form['search_term'] + '%'))
-  venue_list = list(map(Venue, venue_search)) 
-  response = {
-    "count":len(venue_list),
-    "data": venue_list
-  }
-  return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
+  data = []
+  venues = []
+  search_term = request.form.get("search_term").lower()
+  for venue in db.session.query(Venue):
+    if search_term in venue.name:
+      venues.append(venue)
+  for venue in venues:
+    next_shows = Show.query.filter_by(venue_id=venue.id).filter(Show.start_time > datetime.utcnow().strftime('%d-%m-%y %H:%M:%S')).all()
+    data.append({
+      "id": venue.id,
+      "name": venue.name,
+      "num_upcoming_shows": len(next_shows)
+        })
+    response = {
+        "count": len(venues),
+        "data": venues
+    }
+    return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term',''))
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
@@ -203,7 +213,7 @@ def show_venue(venue_id):
   # TODO: replace with real venue data from the venues table, using venue_id
   venues = Venue.query.get(venue_id)
   if venues:
-    venue_info = Venue.info(venues)
+    venue_info = venue_info(venues)
     current_time = datetime.utcnow().strftime('%d-%m-%Y %H:%M:%S')
     upcoming = Show.query.options(db.joinedload(Show.Venue)).filter(Show.venue_id == venue_id).filter(Show.start_time > current_time).all()
     upcoming_shows = list(map(Show.artist_info, upcoming))
@@ -290,27 +300,33 @@ def search_artists():
   # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
   # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
   # search for "band" should return "The Wild Sax Band".
-  search_term = request.form['search_term']
-  data = []
-  search = db.session.query(Artist).all()
-  artist_search = db.session.query(Artist.name.ilike("%" + request.form["search_term"] + "%")).all()
-  #artist_list = list(map(search_artists(), artist_search)) 
-  for s in artist_search:
-    if request.form['search_term'] in search:
-      data.append(Artist.name)
-  response={
-    "count": len(artist_search),
-    "data":  artist_search
-  }
-  return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term',''))
+ data = []
+ artists = []
+ search_term = request.form.get("search_term").lower()
+ #searched = Artist.query.filter(Artist.name.ilike(f'%{search_term}%'))
+ for artist in db.session.query(Artist):
+    if search_term in artist.name:
+      artists.append(artist)
+ for artist in artists:
+    next_shows = Show.query.filter_by(artist_id=artist.id).filter(Show.start_time > datetime.utcnow().strftime('%d-%m-%y %H:%M:%S')).all()
+    data.append({
+      "id": artist.id,
+      "name": artist.name,
+      "num_upcoming_shows": len(next_shows)
+        })
+    response = {
+        "count": len(artists),
+        "data": artists
+    }
+    return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term',''))
 
-  
+ 
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
   # shows the artist page with the given artist_id
   # TODO: replace with real artist data from the artist table, using artist_id
-  artist_select = Artist.query.get(artist_id).all()
+  artist_select = Artist.query.get(artist_id)
   artist_show = Artist.query.get(artist_id)
   if artist_show:
     artist_info = Artist.info(artist_show)
