@@ -225,9 +225,6 @@ def show_venue(venue_id):
     venue_info["past_shows_count"] = len(past_shows)
 
     return render_template('pages/show_venue.html', venue=venue_info)
-  
-  #data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
-  #return render_template('pages/show_venue.html', venue=data)
 
 #  Create Venue
 #  ----------------------------------------------------------------
@@ -261,9 +258,12 @@ def create_venue_submission():
       seeking_talent=seeking_talent,
       seeking_description=seeking_description,
     )
-    db.session.add(venues)
-    db.session.commit()
-    flash('Congratulations! Venue ' + request.form['name'] + ' located at: ' + request.form['address'] + ' was successfully added!')
+    if db.session.add(venues):
+      db.session.commit()
+      flash('Congratulations! Venue ' + request.form['name'] + ' located at: ' + request.form['address'] + ' was successfully added!')
+    else:
+      db.session.rollback()
+      flash('Sorry! Your data has not been submitted. Refresh the page and try again or report to site owner if error persist.')
     return render_template('pages/home.html')
 
   # TODO: on unsuccessful db insert, flash an error instead.
@@ -340,12 +340,14 @@ def show_artist(artist_id):
     artist_info["past_shows"] = past_shows
     artist_info["past_shows_count"] = len(past_shows)
  
-  #data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
   return render_template('pages/show_artist.html', artist=artist_info)
 
 #  Update
 #  ----------------------------------------------------------------
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
+
+ # TODO: populate form with fields from artist with ID <artist_id>
+
 def edit_artist(artist_id):
   form = ArtistForm()
   artist_edit = Artist.query.get(artist_id)
@@ -363,8 +365,6 @@ def edit_artist(artist_id):
     form.seeking_description.data = Artist_data["seeking_description"]
     return render_template('forms/edit_artist.html', form=form, artist=Artist_data)
 
-  # TODO: populate form with fields from artist with ID <artist_id>
- # return render_template('forms/edit_artist.html', form=form, artist=artist)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
@@ -445,10 +445,12 @@ def create_artist_submission():
     seeking_venue=seeking_venue,
     seeking_description=seeking_description,
     )
-  db.session.add(artists)
-  db.session.commit()
-  flash('Congratulations! Artist ' + request.form['name'] + ' from: ' + request.form['city'] + ' was successfully added!')
-  
+
+  if db.session.add(artists):
+    db.session.commit()
+    flash('Congratulations! Artist ' + request.form['name'] + ' from: ' + request.form['city'] + ' was successfully added!')
+  else:
+    flash('Error: Failed to create new artist profile. Please check your values and try again or refresh the page!')
   return render_template('pages/home.html')
 
  
@@ -480,12 +482,13 @@ def create_shows():
 def create_show_submission():
   # called to create new shows in the db, upon submitting new show listing form
   # TODO: insert form data as a new Show record in the db, instead
-  show = ShowForm(request.form)
-  if request.method == 'POST':
-    venue_id = request.form['venue_id']
-    artist_id = request.form['artist_id']
-    start_time = request.form['start_time']
-    db.session.add(show)
+  form = ShowForm()
+  show = Show(
+    venue_id = request.form['venue_id'],
+    artist_id = request.form['artist_id'],
+    start_time = request.form['start_time'],
+  )
+  if db.session.add(show):
     db.session.commit()
     flash('Show was successfully listed!')
   else:
