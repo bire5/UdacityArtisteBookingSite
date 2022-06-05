@@ -468,8 +468,20 @@ def create_artist_submission():
 def shows():
   # displays list of shows at /shows
   # TODO: replace with real venues data.
-  show_data = db.session.query(Show.Venue).options(db.joinedload(Show.Artist), db.joinedload(Venue.Artist)).order_by('start_time').all()
-  data = list(map(Show.detail, show_data))
+  data = []
+  show = {}
+  show_query = db.session.query(Show).all()
+  for s in show_query:
+    #show = {}
+    show["venue_id"] = s.venue_id
+    show["venue_name"] = s.Venue.name
+    show["artist_id"] = s.artist_id
+    show["artist_name"] = s.Artist.name
+    show["artist_image_link"] = s.Artist.image_link
+    show["start_time"] = s.start_time.strftime('%d-%m-%y %H:%M:%S')
+    data.append(show)
+  #show_data = db.session.query(Show.id).options(db.joinedload(Show.Artist), db.joinedload(Venue.Artist)).order_by('start_time').all()
+  #data = list(map(Show.detail, show_data))
   return render_template('pages/shows.html', shows=data)
 
 @app.route('/shows/create')
@@ -482,18 +494,20 @@ def create_shows():
 def create_show_submission():
   # called to create new shows in the db, upon submitting new show listing form
   # TODO: insert form data as a new Show record in the db, instead
-  form = ShowForm()
   show = Show(
     venue_id = request.form['venue_id'],
     artist_id = request.form['artist_id'],
     start_time = request.form['start_time'],
   )
-  if db.session.add(show):
-    db.session.commit()
-    flash('Show was successfully listed!')
-  else:
-    db.session.rollback()
-    flash('An error occurred. Show could not be listed!')
+  db.session.add(show)
+  db.session.commit()
+  flash('Show was successfully listed!')
+
+  #if db.session.add(show):
+    #db.session.commit()
+#  else:
+   # db.session.rollback()
+   # flash('An error occurred. Show could not be listed!')
   return render_template('pages/home.html')
 
 
